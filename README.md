@@ -7,7 +7,8 @@ OpenAI Whisper 대비 최대 4배 빠른 성능으로 실시간 음성 인식을
 
 ### 주요 기능
 - **고속 음성 인식**: OpenAI Whisper 대비 4배 빠른 처리 속도
-- **다양한 모델 지원**: tiny부터 large-v3까지 성능/속도 최적화 모델
+- **최신 터보 모델**: large-v3-turbo로 8배 더 빠른 실시간 처리
+- **다양한 모델 지원**: tiny부터 large-v3-turbo까지 성능/속도 최적화 모델
 - **실시간 웹 인터페이스**: 직관적이고 반응형 UI/UX
 - **다국어 지원**: 100+ 언어 자동 감지 및 인식
 - **고급 옵션**: 단어별 타임스탬프, VAD 필터, 빔 서치 최적화
@@ -115,6 +116,9 @@ source .venv/bin/activate
 
 # Python에서 모델 다운로드 (자동)
 python3 -c "from faster_whisper import WhisperModel; WhisperModel('large-v3')"
+
+# 최신 터보 모델 다운로드
+python3 -c "from faster_whisper import WhisperModel; WhisperModel('large-v3-turbo')"
 ```
 
 ## 🌐 nginx 설정
@@ -138,6 +142,7 @@ python3 -c "from faster_whisper import WhisperModel; WhisperModel('large-v3')"
 | `large-v1` | 1550MB | ~10GB | 최고 품질 |
 | `large-v2` | 1550MB | ~10GB | 개선된 품질 |
 | `large-v3` | 1550MB | ~10GB | 최신 버전, 최고 성능 |
+| `large-v3-turbo` | 1550MB | ~10GB | 🚀 **최신 터보 모델**, 8배 빠른 속도 |
 | `distil-large-v2` | 756MB | ~6GB | 경량화된 large 모델 |
 | `distil-large-v3` | 756MB | ~6GB | 최신 경량화 모델 |
 
@@ -313,6 +318,7 @@ netstat -tulpn | grep 3401
 | small | 4x | 90% | 2GB | 품질 중시 |
 | medium | 2x | 95% | 5GB | 높은 품질 |
 | large-v3 | 1x | 98% | 10GB | 최고 품질 |
+| large-v3-turbo | 8x | 98% | 10GB | 🚀 **최고 품질 + 초고속** |
 
 ## 🔧 가상환경 관리
 
