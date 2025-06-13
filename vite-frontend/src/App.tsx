@@ -344,12 +344,26 @@ function App() {
       link.href = url;
       const contentDisposition = response.headers['content-disposition'];
       let filename = `transcription.${downloadFormat}`;
+      
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
-        if (filenameMatch && filenameMatch.length > 1) {
-          filename = filenameMatch[1];
+        // RFC 5987 표준에 따른 파일명 파싱
+        // filename*=UTF-8''encoded_filename 형식을 우선 처리
+        const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match && utf8Match[1]) {
+          try {
+            filename = decodeURIComponent(utf8Match[1]);
+          } catch (e) {
+            console.warn('UTF-8 파일명 디코딩 실패:', e);
+          }
+        } else {
+          // fallback: filename="..." 형식 처리
+          const asciiMatch = contentDisposition.match(/filename="([^"]+)"/i);
+          if (asciiMatch && asciiMatch[1]) {
+            filename = asciiMatch[1];
+          }
         }
       }
+      
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();

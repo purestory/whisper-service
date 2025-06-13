@@ -16,6 +16,8 @@ import time
 import threading
 import json
 from pydantic import BaseModel
+import re
+import urllib.parse
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -480,6 +482,35 @@ class DownloadRequest(BaseModel):
     txt_include_timestamps: Optional[bool] = False # txt 형식일 경우 타임스탬프 포함 여부
     original_filename: Optional[str] = None # 원본 파일명
 
+def sanitize_filename(filename: str) -> str:
+    """파일명에서 위험한 문자만 제거하고 안전한 파일명으로 변환"""
+    if not filename:
+        return "transcription"
+    
+    # 위험한 문자들만 제거 (파일시스템에서 문제가 되는 문자들)
+    # 제거할 문자: / \ : * ? " < > |
+    dangerous_chars = r'[/\\:*?"<>|]'
+    safe_filename = re.sub(dangerous_chars, '', filename)
+    
+    # 제어 문자 제거 (ASCII 0-31)
+    safe_filename = re.sub(r'[\x00-\x1f]', '', safe_filename)
+    
+    # 연속된 공백을 하나로 변경
+    safe_filename = re.sub(r'\s+', ' ', safe_filename)
+    
+    # 앞뒤 공백과 점 제거 (Windows에서 문제가 될 수 있음)
+    safe_filename = safe_filename.strip(' .')
+    
+    # 파일명이 너무 길면 자르기 (확장자 제외하고 150자로 제한)
+    if len(safe_filename) > 150:
+        safe_filename = safe_filename[:150].strip()
+    
+    # 빈 문자열이면 기본값 반환
+    if not safe_filename:
+        return "transcription"
+    
+    return safe_filename
+
 @app.post("/download")
 async def download_transcription(request_data: DownloadRequest = Body(...)):
     file_format = request_data.file_format.lower()
@@ -488,13 +519,22 @@ async def download_transcription(request_data: DownloadRequest = Body(...)):
     content = ""
     media_type = "text/plain"
     
+    # 디버깅을 위한 로그 추가
+    logger.info(f"Download request - original_filename: {request_data.original_filename}")
+    
     # 원본 파일명에서 확장자만 변경하여 다운로드 파일명 생성
     if request_data.original_filename:
         # 확장자 제거
         base_name = os.path.splitext(request_data.original_filename)[0]
-        filename = f"{base_name}.{file_format}"
+        logger.info(f"Base name after removing extension: {base_name}")
+        # 파일명 안전하게 처리
+        safe_base_name = sanitize_filename(base_name)
+        logger.info(f"Safe base name after sanitization: {safe_base_name}")
+        filename = f"{safe_base_name}.{file_format}"
     else:
         filename = f"transcription.{file_format}"
+    
+    logger.info(f"Final filename: {filename}")
 
     if file_format == "txt":
         content = generate_txt_content(segments_as_dict, request_data.full_text, request_data.txt_include_timestamps or False)
@@ -513,10 +553,21 @@ async def download_transcription(request_data: DownloadRequest = Body(...)):
     # 문자열을 바이트 스트림으로 변환
     stream = io.BytesIO(content.encode("utf-8"))
     
+    # 파일명을 안전하게 처리 (RFC 5987 표준 준수)
+    # ASCII 안전한 파일명 생성 (fallback용)
+    ascii_filename = re.sub(r'[^\x20-\x7E]', '_', filename)
+    # UTF-8 인코딩된 파일명
+    encoded_filename = urllib.parse.quote(filename.encode('utf-8'))
+    
+    logger.info(f"ASCII filename: {ascii_filename}")
+    logger.info(f"Encoded filename: {encoded_filename}")
+    
     return StreamingResponse(
         stream,
         media_type=media_type,
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{ascii_filename}\"; filename*=UTF-8''{encoded_filename}"
+        }
     )
 # --- 다운로드 기능 추가 완료 ---
 
